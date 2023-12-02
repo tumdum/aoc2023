@@ -3,6 +3,7 @@ use std::cmp::{Ordering, Reverse};
 use std::collections::{BinaryHeap, VecDeque};
 use std::fmt::Debug;
 use std::hash::Hash;
+use std::ops::Add;
 
 pub fn path<T: PartialEq + Eq + Hash + Clone>(
     from: &T,
@@ -52,25 +53,26 @@ where
 }
 
 // Returns cost of path from start and previous nodes for path reconstruction.
-pub fn dijkstra<T>(
+pub fn dijkstra<T, P>(
     start: T,
-    neighbours_of: impl Fn(&T) -> Vec<(T, u64)>,
-) -> (FxHashMap<T, u64>, FxHashMap<T, T>)
+    neighbours_of: impl Fn(&T) -> Vec<(T, P)>,
+) -> (FxHashMap<T, P>, FxHashMap<T, T>)
 where
     T: Debug + PartialEq + Eq + PartialOrd + Ord + Hash + Clone,
+    P: Debug + PartialEq + Eq + PartialOrd + Ord + Default + Clone + Add<Output = P>,
 {
-    let mut dist: FxHashMap<T, u64> = Default::default();
-    dist.insert(start.clone(), 0);
+    let mut dist: FxHashMap<T, P> = Default::default();
+    dist.insert(start.clone(), P::default());
 
     let mut prev: FxHashMap<T, T> = Default::default();
 
     #[derive(Debug, PartialEq, Eq, Ord)]
-    struct State<U: Debug + PartialEq + Eq + PartialOrd + Ord> {
+    struct State<U: Debug + PartialEq + Eq + PartialOrd + Ord, V: Debug + PartialOrd + Ord> {
         key: U,
-        prio: u64,
+        prio: V,
     }
 
-    impl<U: Debug + PartialEq + Eq + PartialOrd + Ord> PartialOrd for State<U> {
+    impl<U: Debug + PartialOrd + Ord, V: Debug + PartialOrd + Ord> PartialOrd for State<U, V> {
         fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
             let o = self.prio.partial_cmp(&other.prio);
             if o == Some(Ordering::Equal) {
@@ -80,18 +82,18 @@ where
             }
         }
     }
-    let mut todo: BinaryHeap<Reverse<State<T>>> = BinaryHeap::default();
+    let mut todo: BinaryHeap<Reverse<State<T, P>>> = BinaryHeap::default();
     todo.push(Reverse(State {
         key: start.clone(),
-        prio: *dist.get(&start).unwrap(),
+        prio: dist.get(&start).unwrap().clone(),
     }));
 
     while let Some(Reverse(State { key, prio })) = todo.pop() {
         for (neighbour, cost) in neighbours_of(&key) {
             debug_assert_eq!(&prio, dist.get(&key).unwrap());
-            let alt = prio + cost;
-            if alt < *dist.get(&neighbour).unwrap_or(&u64::MAX) {
-                dist.insert(neighbour.clone(), alt);
+            let alt = prio.clone() + cost;
+            if dist.get(&neighbour).map(|p| &alt < p).unwrap_or(true) {
+                dist.insert(neighbour.clone(), alt.clone());
                 prev.insert(neighbour.clone(), key.clone());
                 todo.push(Reverse(State {
                     key: neighbour,
