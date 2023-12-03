@@ -1,0 +1,34 @@
+Raw ← &ru 0 0
+Max ← [□"red" □12 □"green" 13 □"blue" 14]
+
+Words ← regex "\\w+"
+StripPrefix ← (∘|↘⧻⊔⊢⊜□+1.=@ .)=@ ⊢.
+StripSuffix ← (∘|(↙-:⧻,⧻⊢|;)=0⧻.⊜□.⇌=@ .)=@ ⊢⇌.
+Strip ← StripSuffix StripPrefix
+Repeat ← ⬚: (↙ : [])
+⍤"" ≍ [2 2 2] Repeat 3 2
+⍤"" ≍ "abc d" Strip "  abc d  "
+⍤"" ≍ "abc d" Strip "abc d"
+
+Input ← ≡(□ ⍘utf ⊔) ⊐⊜∘ ≠10 . Raw
+
+# Strips the prefix matching regex, regex must be
+# constructed in a way that will start at the string
+# start!
+StripPrefix ← ↘⧻⊢⊢regex ⊙.
+
+InputStriped ← ≡(□ StripPrefix ".*: " ⊔) Input
+SplitBy ← ⊐⊜∘=0=⊙.
+InputSplit ← ≡(□ SplitBy @; ⊔) InputStriped
+ParseSet ← ≡(SplitBy @  Strip ⊔) SplitBy @,
+ParseGame ← ≡(□ParseSet) ⊔
+ParsedInput ← ≡(□ParseGame) InputSplit
+
+CheckOneCase ← ≥ ⊙(⊔⊡) parse ⊔ ⊢ : +1 ⊗ ⊡1 ,,
+⍤ "" = 1 CheckOneCase [□"1" □"red"] Max
+⍤ "" = 0 CheckOneCase [□"13" □"red"] Max
+
+CheckCubes ← CheckOneCase : Max
+SolveSet ← =⊙⧻ /+. ≡(CheckCubes ⊔) ⊔
+SolveGame ← =⊙⧻/+.≡(SolveSet) ⊔
+/+▽:+1⇡ ⧻ . ≡(SolveGame) ParsedInput
