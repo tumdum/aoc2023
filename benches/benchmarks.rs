@@ -10,7 +10,7 @@ macro_rules! benchmark {
             ))
             .unwrap();
             c.bench_function(stringify!($name), |b| {
-                b.iter(|| aoc22::$name::solve(&input, false, false))
+                b.iter(|| aoc23::$name::solve(&input, false, false))
             });
         }
     };

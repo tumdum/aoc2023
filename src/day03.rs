@@ -1,5 +1,6 @@
 use anyhow::Result;
 use rustc_hash::{FxHashMap, FxHashSet};
+use smallvec::SmallVec;
 use std::time::{Duration, Instant};
 
 use crate::input::tokens;
@@ -19,10 +20,10 @@ fn get(map: &[Vec<char>], pos: Pos) -> Option<char> {
     None
 }
 
-fn get_around(map: &[Vec<char>], pos: Pos) -> (FxHashSet<char>, FxHashSet<Pos>) {
+fn get_around(map: &[Vec<char>], pos: Pos) -> FxHashMap<Pos, char> {
     let d = [-1i64, 0, 1];
-    let mut ret: FxHashSet<char> = FxHashSet::default();
-    let mut retp: FxHashSet<Pos> = FxHashSet::default();
+    let mut ret: FxHashMap<Pos, char> = Default::default();
+    ret.reserve(8);
     for dx in d {
         for dy in d {
             if dx == 0 && dy == 0 {
@@ -33,58 +34,11 @@ fn get_around(map: &[Vec<char>], pos: Pos) -> (FxHashSet<char>, FxHashSet<Pos>) 
                 y: pos.y + dy,
             };
             if let Some(val) = get(map, p) {
-                ret.insert(val);
-                retp.insert(p);
+                ret.insert(p, val);
             }
         }
     }
-    (ret, retp)
-}
-
-fn collect_num(map: &[Vec<char>], pos: Pos) -> (i64, FxHashSet<Pos>) {
-    let mut ret = vec![];
-    let mut used = FxHashSet::default();
-    used.insert(pos);
-    let mut dx = 1i64;
-    loop {
-        let p = Pos {
-            x: pos.x - dx,
-            y: pos.y,
-        };
-        if let Some(c) = get(map, p) {
-            if c.is_ascii_digit() {
-                ret.push(c);
-                used.insert(p);
-                dx += 1;
-            } else {
-                break;
-            }
-        } else {
-            break;
-        }
-    }
-    ret.reverse();
-    ret.push(get(map, pos).unwrap());
-    dx = 1;
-    loop {
-        let p = Pos {
-            x: pos.x + dx,
-            y: pos.y,
-        };
-        if let Some(c) = get(map, p) {
-            if c.is_ascii_digit() {
-                ret.push(c);
-                used.insert(p);
-                dx += 1;
-            } else {
-                break;
-            }
-        } else {
-            break;
-        }
-    }
-    let ret: String = ret.into_iter().collect();
-    (ret.parse().unwrap(), used)
+    ret
 }
 
 pub fn solve(input: &str, verify_expected: bool, output: bool) -> Result<Duration> {
@@ -95,54 +49,53 @@ pub fn solve(input: &str, verify_expected: bool, output: bool) -> Result<Duratio
 
     let s = Instant::now();
 
-    let mut used: FxHashSet<Pos> = FxHashSet::default();
-    let mut adjecent_to_parts: FxHashMap<Pos, Vec<i64>> = Default::default();
     let mut part1 = 0i64;
-    for row in 0..input.len() {
-        for col in 0..input[row].len() {
-            let p = Pos {
-                x: col as i64,
-                y: row as i64,
-            };
-            if used.contains(&p) {
-                continue;
-            }
-            let c = get(&input, p).unwrap();
+    let mut current_digs = vec![];
+    let mut current_pos = vec![];
+    let mut gears: FxHashMap<Pos, FxHashSet<i64>> = Default::default();
+    for (row_id, row) in input.iter().enumerate() {
+        for (col_id, c) in row.iter().enumerate() {
             if c.is_ascii_digit() {
-                let (s, _) = get_around(&input, p);
-                let (num, used_for_num) = collect_num(&input, p);
-                if s.iter().any(|c| !c.is_ascii_digit() && *c != '.') {
+                current_digs.push(*c);
+                let p = Pos {
+                    x: col_id as i64,
+                    y: row_id as i64,
+                };
+                current_pos.push(p);
+            }
+            if (!c.is_ascii_digit() || col_id == (row.len() - 1)) && !current_digs.is_empty() {
+                let mut is_part_num = false;
+                let mut candidate_gears: SmallVec<[Pos; 12]> = Default::default();
+                for p in current_pos.iter() {
+                    for (p, c) in get_around(&input, *p) {
+                        if !c.is_ascii_digit() && c != '.' {
+                            is_part_num = true;
+                        }
+                        if c == '*' {
+                            candidate_gears.push(p);
+                        }
+                    }
+                }
+                if is_part_num {
+                    let num: i64 = current_digs
+                        .iter()
+                        .copied()
+                        .fold(0, |a, v| a * 10 + v.to_digit(10).unwrap() as i64);
+                    for c in candidate_gears {
+                        gears.entry(c).or_default().insert(num);
+                    }
                     part1 += num;
-                    used.extend(used_for_num.iter().copied());
-
-                    let mut num_and_around: FxHashSet<Pos> = Default::default();
-                    for p in used_for_num {
-                        num_and_around.extend(get_around(&input, p).1);
-                    }
-                    for p in num_and_around {
-                        adjecent_to_parts.entry(p).or_default().push(num);
-                    }
                 }
+                current_digs.clear();
+                current_pos.clear();
             }
         }
     }
-    let mut part2 = 0i64;
-    for row in 0..input.len() {
-        for col in 0..input[row].len() {
-            let p = Pos {
-                x: col as i64,
-                y: row as i64,
-            };
-            if get(&input, p).unwrap() == '*' {
-                if let Some(c) = adjecent_to_parts.get(&p) {
-                    if c.len() == 2 {
-                        part2 += c[0] * c[1];
-                    }
-                }
-            }
-        }
-    }
-
+    let part2 = gears
+        .into_values()
+        .filter(|v| v.len() == 2)
+        .map(|v| v.into_iter().product::<i64>())
+        .sum::<i64>();
     let e = s.elapsed();
 
     if verify_expected {
