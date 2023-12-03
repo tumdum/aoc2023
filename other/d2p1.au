@@ -1,23 +1,16 @@
 Raw ← &ru 0 0
 Max ← [□"red" □12 □"green" 13 □"blue" 14]
 
-Words ← regex "\\w+"
-StripPrefix ← (∘|↘⧻⊔⊢⊜□+1.=@ .)=@ ⊢.
-StripSuffix ← (∘|(↙-:⧻,⧻⊢|;)=0⧻.⊜□.⇌=@ .)=@ ⊢⇌.
-Strip ← StripSuffix StripPrefix
-Repeat ← ⬚: (↙ : [])
-⍤"" ≍ [2 2 2] Repeat 3 2
-⍤"" ≍ "abc d" Strip "  abc d  "
-⍤"" ≍ "abc d" Strip "abc d"
+SpacePrefix ← (∘|↘⧻⊔⊢⊜□+1.=@ .)=@ ⊢.
+SpaceSuffix ← (∘|(↙-:⧻,⧻⊢|;)=0⧻.⊜□.⇌=@ .)=@ ⊢⇌.
+Strip ← SpaceSuffix SpacePrefix
 
 Input ← ≡(□ ⍘utf ⊔) ⊐⊜∘ ≠10 . Raw
 
-# Strips the prefix matching regex, regex must be
-# constructed in a way that will start at the string
-# start!
-StripPrefix ← ↘⧻⊢⊢regex ⊙.
+# Strips the prefix up to matching regex
+StripUpTo ← ↘⧻⊢⊢regex ⊙.
 
-InputStriped ← ≡(□ StripPrefix ".*: " ⊔) Input
+InputStriped ← ≡(□ StripUpTo ".*: " ⊔) Input
 SplitBy ← ⊐⊜∘=0=⊙.
 InputSplit ← ≡(□ SplitBy @; ⊔) InputStriped
 ParseSet ← ≡(SplitBy @  Strip ⊔) SplitBy @,
