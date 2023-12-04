@@ -45,7 +45,7 @@ fn main() {
         &aoc23::day01::solve,
         &aoc23::day02::solve,
         &aoc23::day03::solve,
-        // &aoc23::day04::solve,
+        &aoc23::day04::solve,
         // &aoc23::day05::solve,
         // &aoc23::day06::solve,
         // &aoc23::day07::solve,
