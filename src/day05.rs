@@ -18,8 +18,8 @@ fn convert(maps: &[Vec<(Range<i64>, i64)>], mut num: i64) -> i64 {
     num
 }
 
-fn convert_inv(maps: &[Vec<(Range<i64>, i64)>], num: i64) -> Vec<i64> {
-    (0..maps.len()).map(|d| convert(&maps[d..], num)).collect()
+fn convert_inv(maps: &[Vec<(Range<i64>, i64)>], num: i64, depth: i64) -> i64 {
+    convert(&maps[(maps.len() - depth as usize)..], num)
 }
 
 pub fn solve(input: &str, verify_expected: bool, output: bool) -> Result<Duration> {
@@ -66,18 +66,19 @@ pub fn solve(input: &str, verify_expected: bool, output: bool) -> Result<Duratio
         })
         .collect();
 
-    let very_important_numbers: Vec<i64> = maps
+    let inverted_boundaries: Vec<i64> = maps
         .iter()
-        .flat_map(|map| map.iter().map(|(r, _)| r.clone()))
-        .flat_map(|r| [r.start, r.clone().last().unwrap()])
-        .flat_map(|v| convert_inv(&maps_inv, v))
+        .enumerate()
+        .flat_map(|(depth, map)| map.iter().map(move |(r, _)| (depth, r.clone())))
+        .flat_map(|(d, r)| [(d, r.start), (d, r.end - 1)])
+        .map(|(d, v)| convert_inv(&maps_inv, v, d as i64))
         .collect();
 
     let part2 = seeds
         .chunks(2)
         .map(|c| {
             let r = c[0]..(c[0] + c[1]);
-            let mut to_check = very_important_numbers.clone();
+            let mut to_check = inverted_boundaries.clone();
             to_check.push(c[0]);
             to_check.push(c[0] + c[1] - 1);
             to_check
