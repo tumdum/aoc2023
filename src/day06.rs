@@ -40,8 +40,9 @@ fn either_way<T>(r: Result<T, T>) -> T {
 }
 
 fn ways_to_win_race(t: i64, record: i64) -> i64 {
-    let first_win = either_way(binary_search_by(0, t / 2, |p| ((t - p) * p).cmp(&record)));
-    let last_win = either_way(binary_search_by(t / 2, t, |p| record.cmp(&((t - p) * p))));
+    let will_win = |press_time: i64| ((t - press_time) * press_time).cmp(&record);
+    let first_win = either_way(binary_search_by(0, t / 2, will_win));
+    let last_win = either_way(binary_search_by(t / 2, t, |p| will_win(p).reverse()));
 
     last_win - first_win
 }
