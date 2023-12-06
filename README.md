@@ -3,12 +3,15 @@
 # Advent of Code solutions 2023
 
 ```
-Day 01 took   958.0µs to compute (rsum   958.0µs) (with i/o:     1.0ms, rsum     1.0ms)
-Day 02 took    35.7µs to compute (rsum   993.8µs) (with i/o:   231.7µs, rsum     1.3ms)
-Day 03 took     3.6ms to compute (rsum     4.6ms) (with i/o:     4.0ms, rsum     5.3ms)
+Day 01 took   946.2µs to compute (rsum   946.2µs) (with i/o:     1.0ms, rsum     1.0ms)
+Day 02 took    34.4µs to compute (rsum   980.6µs) (with i/o:   244.6µs, rsum     1.3ms)
+Day 03 took   692.7µs to compute (rsum     1.7ms) (with i/o:   770.0µs, rsum     2.0ms)
+Day 04 took    62.0µs to compute (rsum     1.7ms) (with i/o:   248.9µs, rsum     2.3ms)
+Day 05 took    76.9µs to compute (rsum     1.8ms) (with i/o:   145.9µs, rsum     2.4ms)
+Day 06 took   431.0ns to compute (rsum     1.8ms) (with i/o:     5.6µs, rsum     2.4ms)
 
-         Total time for 3 days:     4.6ms (avg per day     1.5ms, med:   958.0µs, min:    35.7µs, max:     3.6ms)
-Total time with i/o for 3 days:     5.3ms (avg per day     1.8ms, med:     1.0ms, min:   231.7µs, max:     4.0ms)
+         Total time for 6 days:     1.8ms (avg per day   302.1µs, med:    69.5µs, min:   431.0ns, max:   946.2µs)
+Total time with i/o for 6 days:     2.4ms (avg per day   405.8µs, med:   246.8µs, min:     5.6µs, max:     1.0ms)
 ```
 
 # previous solutions
