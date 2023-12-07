@@ -12,6 +12,9 @@ type Cards = SmallVec<[u8; 5]>;
 const CARDS: [u8; 13] = [
     b'A', b'K', b'Q', b'J', b'T', b'9', b'8', b'7', b'6', b'5', b'4', b'3', b'2',
 ];
+const CARDS_CANDIDATES: [u8; 12] = [
+    b'A', b'K', b'Q', b'T', b'9', b'8', b'7', b'6', b'5', b'4', b'3', b'2',
+];
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
 enum Kind {
@@ -63,7 +66,7 @@ fn kind(cards: &Cards) -> Kind {
     for c in cards {
         counts[*c as usize] += 1;
     }
-    let mut counts: SmallVec<[u8; 5]> = CARDS
+    let counts: SmallVec<[u8; 5]> = CARDS
         .iter()
         .filter_map(|c| {
             if counts[*c as usize] > 0 {
@@ -73,36 +76,42 @@ fn kind(cards: &Cards) -> Kind {
             }
         })
         .collect();
-    if counts.len() == 1 {
-        return Kind::Five;
-    }
-    if counts.len() == 5 {
-        return Kind::HighCard;
-    }
-    counts.sort_unstable();
-
-    if counts.last().unwrap() == &4 {
-        Kind::Four
-    } else if counts[0] == 2 && counts[1] == 3 {
-        Kind::Full
-    } else if counts.last().unwrap() == &3 {
-        Kind::Three
-    } else if counts.len() > 2 && counts[1] == 2 && counts[2] == 2 {
-        Kind::TwoPair
-    } else {
-        Kind::OnePair
+    match counts.len() {
+        5 => Kind::HighCard,
+        4 => Kind::OnePair,
+        2 => {
+            if counts[0] == 4 || counts[1] == 4 {
+                return Kind::Four;
+            } else {
+                return Kind::Full;
+            }
+        }
+        1 => Kind::Five,
+        _ => {
+            if counts.into_iter().max().unwrap() == 3 {
+                Kind::Three
+            } else {
+                Kind::TwoPair
+            }
+        }
     }
 }
 
 fn find_best_kind(h: &Hand) -> Kind {
     if h.cards.iter().any(|c| *c == b'J') {
-        CARDS
+        CARDS_CANDIDATES
             .iter()
-            .map(|c| {
+            .map(|candidate| {
                 let tmp: Cards = h
                     .cards
                     .iter()
-                    .map(|cc| if *cc == b'J' { *c } else { *cc })
+                    .map(|current| {
+                        if *current == b'J' {
+                            *candidate
+                        } else {
+                            *current
+                        }
+                    })
                     .collect();
                 kind(&tmp)
             })
@@ -113,9 +122,9 @@ fn find_best_kind(h: &Hand) -> Kind {
     }
 }
 
-fn total_winnings(hands: impl IntoIterator<Item = (Hand, i64)>) -> i64 {
+fn total_winnings(hands: &[(Hand, i64)]) -> i64 {
     hands
-        .into_iter()
+        .iter()
         .enumerate()
         .map(|(id, (_, bid))| (id as i64 + 1) * bid)
         .sum()
@@ -138,7 +147,7 @@ pub fn solve(input: &str, verify_expected: bool, output: bool) -> Result<Duratio
     scores[b'A' as usize] = 12;
 
     let input: Vec<String> = tokens(input, None);
-    let input: Vec<(Hand, i64)> = input
+    let mut input: Vec<(Hand, i64)> = input
         .chunks(2)
         .map(|v| {
             let hand = parse(&v[0]);
@@ -148,12 +157,10 @@ pub fn solve(input: &str, verify_expected: bool, output: bool) -> Result<Duratio
         .collect();
     let s = Instant::now();
 
-    let mut hands = input.clone();
-    hands.sort_unstable_by(|(left_hand, _), (right_hand, _)| left_hand.cmp(&right_hand, &scores));
-    let part1 = total_winnings(hands);
+    input.sort_unstable_by(|(left_hand, _), (right_hand, _)| left_hand.cmp(&right_hand, &scores));
+    let part1 = total_winnings(&input);
 
     let mut hands: Vec<(Hand, i64)> = input
-        .clone()
         .into_iter()
         .map(|(mut h, bid)| {
             h.kind = find_best_kind(&h);
@@ -163,7 +170,7 @@ pub fn solve(input: &str, verify_expected: bool, output: bool) -> Result<Duratio
 
     scores[b'J' as usize] = -1;
     hands.sort_unstable_by(|(left_hand, _), (right_hand, _)| left_hand.cmp(&right_hand, &scores));
-    let part2 = total_winnings(hands);
+    let part2 = total_winnings(&hands);
 
     let e = s.elapsed();
 
