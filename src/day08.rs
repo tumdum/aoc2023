@@ -3,13 +3,13 @@ use std::time::{Duration, Instant};
 
 use crate::input::tokens;
 
-type Node = u32;
+type Node = u16;
 
 fn to_node(chars: &str) -> Node {
     chars
         .chars()
         .map(|c| c as u8)
-        .fold(0, |a, b| a << 7 | (b - b'A') as u32)
+        .fold(0, |a, b| a << 5 | (b - b'A') as u16)
 }
 
 pub fn solve(input: &str, verify_expected: bool, output: bool) -> Result<Duration> {
@@ -31,7 +31,7 @@ pub fn solve(input: &str, verify_expected: bool, output: bool) -> Result<Duratio
     let mut current = to_node("AAA");
     let mut part1 = 0u64;
     for dir in dirs.chars().cycle() {
-        if current == 0x64C99 {
+        if current == 0x6739 {
             break;
         }
         part1 += 1;
@@ -44,7 +44,7 @@ pub fn solve(input: &str, verify_expected: bool, output: bool) -> Result<Duratio
 
     let mut ghost_current: Vec<(usize, Node)> = keys
         .iter()
-        .filter(|s| (*s & 0b01111111) == 25)
+        .filter(|s| (*s & 0b00011111) == 25)
         .copied()
         .enumerate()
         .collect();
@@ -54,7 +54,7 @@ pub fn solve(input: &str, verify_expected: bool, output: bool) -> Result<Duratio
     for (steps, dir) in dirs.chars().cycle().enumerate() {
         if let Some(idx) = ghost_current
             .iter()
-            .position(|(_, s)| (s & 0b01111111) == 25)
+            .position(|(_, s)| (s & 0b00011111) == 25)
         {
             let id = ghost_current[idx].0;
             if let Some(previous_end) = ends[id] {
