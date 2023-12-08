@@ -1,18 +1,15 @@
 use anyhow::Result;
-use rustc_hash::FxHashMap;
 use std::time::{Duration, Instant};
 
 use crate::input::tokens;
 
-type Node = [u8; 3];
+type Node = u32;
 
 fn to_node(chars: &str) -> Node {
     chars
         .chars()
         .map(|c| c as u8)
-        .collect::<Vec<_>>()
-        .try_into()
-        .unwrap()
+        .fold(0, |a, b| a << 7 | (b - b'A') as u32)
 }
 
 pub fn solve(input: &str, verify_expected: bool, output: bool) -> Result<Duration> {
@@ -23,37 +20,42 @@ pub fn solve(input: &str, verify_expected: bool, output: bool) -> Result<Duratio
     let input: Vec<String> = tokens(&input, None).into_iter().collect();
     let dirs = input[0].clone();
     let input: Vec<String> = input.into_iter().skip(1).collect();
-    let input: FxHashMap<Node, (Node, Node)> = input
-        .chunks(3)
-        .map(|c| (to_node(&c[0]), (to_node(&c[1]), to_node(&c[2]))))
-        .collect();
+    let keys: Vec<Node> = input.chunks(3).map(|c| to_node(&c[0])).collect();
+    let max = *keys.iter().max().unwrap() + 1;
+    let mut input2: Vec<(Node, Node)> = vec![(0, 0); max as usize];
+    input.chunks(3).for_each(|c| {
+        input2[to_node(&c[0]) as usize] = (to_node(&c[1]), to_node(&c[2]));
+    });
 
     let s = Instant::now();
     let mut current = to_node("AAA");
     let mut part1 = 0u64;
     for dir in dirs.chars().cycle() {
-        if current == [b'Z', b'Z', b'Z'] {
+        if current == 0x64C99 {
             break;
         }
         part1 += 1;
         if dir == 'R' {
-            current = input.get(&current).unwrap().1.clone();
+            current = input2[current as usize].1;
         } else {
-            current = input.get(&current).unwrap().0.clone();
+            current = input2[current as usize].0;
         }
     }
 
-    let mut ghost_current: Vec<(usize, Node)> = input
-        .keys()
-        .filter(|s| s[2] == b'A')
-        .cloned()
+    let mut ghost_current: Vec<(usize, Node)> = keys
+        .iter()
+        .filter(|s| (*s & 0b01111111) == 25)
+        .copied()
         .enumerate()
         .collect();
     let mut ends: Vec<Option<u64>> = vec![None; ghost_current.len()];
 
     let mut cycle_lens = vec![];
     for (steps, dir) in dirs.chars().cycle().enumerate() {
-        if let Some(idx) = ghost_current.iter().position(|(_, s)| s[2] == b'Z') {
+        if let Some(idx) = ghost_current
+            .iter()
+            .position(|(_, s)| (s & 0b01111111) == 25)
+        {
             let id = ghost_current[idx].0;
             if let Some(previous_end) = ends[id] {
                 cycle_lens.push(steps as u64 - previous_end);
@@ -69,11 +71,11 @@ pub fn solve(input: &str, verify_expected: bool, output: bool) -> Result<Duratio
 
         if dir == 'R' {
             for i in 0..ghost_current.len() {
-                ghost_current[i].1 = input.get(&ghost_current[i].1).unwrap().1.clone();
+                ghost_current[i].1 = input2[ghost_current[i].1 as usize].1;
             }
         } else {
             for i in 0..ghost_current.len() {
-                ghost_current[i].1 = input.get(&ghost_current[i].1).unwrap().0.clone();
+                ghost_current[i].1 = input2[ghost_current[i].1 as usize].0;
             }
         }
     }
