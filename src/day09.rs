@@ -3,12 +3,15 @@ use std::time::{Duration, Instant};
 
 use crate::input::token_groups;
 
-fn find_next(nums: &[i64]) -> i64 {
-    if nums.iter().all(|v| *v == nums[0]) {
-        nums[0]
-    } else {
-        nums.last().unwrap() + find_next(&nums.windows(2).map(|w| w[1] - w[0]).collect::<Vec<_>>())
+fn find_next(mut nums: Vec<i64>) -> i64 {
+    let mut l = nums.len();
+    while l > 1 {
+        for i in 1..l {
+            nums[i - 1] = nums[i] - nums[i - 1];
+        }
+        l -= 1;
     }
+    nums.iter().sum::<i64>()
 }
 
 pub fn solve(input: &str, verify_expected: bool, output: bool) -> Result<Duration> {
@@ -16,10 +19,13 @@ pub fn solve(input: &str, verify_expected: bool, output: bool) -> Result<Duratio
 
     let s = Instant::now();
 
-    let part1 = input.iter().map(|nums| find_next(&nums)).sum::<i64>();
+    let part1 = input.iter().cloned().map(find_next).sum::<i64>();
     let part2 = input
-        .iter()
-        .map(|nums| find_next(&nums.into_iter().copied().rev().collect::<Vec<_>>()))
+        .into_iter()
+        .map(|mut v| {
+            v.reverse();
+            find_next(v)
+        })
         .sum::<i64>();
 
     let e = s.elapsed();
