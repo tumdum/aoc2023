@@ -9,46 +9,14 @@ type Map = Vec<Vec<char>>;
 type PosToAllowed = Vec<SmallVec<[(Pos, SmallVec<[char; 3]>); 4]>>;
 type Pos = (i16, i16);
 
+#[inline(always)]
 fn get(x: i16, y: i16, m: &Map) -> Option<char> {
     m.get(y as usize)
         .and_then(|row| row.get(x as usize))
         .copied()
 }
 
-fn get_around(x: i16, y: i16, m: &Map, p_to_delta: &PosToAllowed) -> SmallVec<[Pos; 4]> {
-    let mut ret = smallvec![];
-    let p = get(x, y, m).unwrap();
-    let allowed = &p_to_delta[p as usize];
-    for ((dx, dy), allowed_chars) in allowed {
-        if let Some(current) = get(x + dx, y + dy, m) {
-            if allowed_chars.contains(&current) {
-                ret.push((x + dx, y + dy));
-            }
-        }
-    }
-    ret
-}
-fn get_around_dot(x: i16, y: i16, m: &Map) -> (SmallVec<[Pos; 4]>, bool) {
-    let mut ret = smallvec![];
-    let mut reached_outside = false;
-
-    for (dx, dy) in [(-1, 0), (1, 0), (0, 1), (0, -1)] {
-        let x = x + dx;
-        let y = y + dy;
-
-        if x < 0 || y < 0 || x == m[0].len() as i16 || y == m.len() as i16 {
-            reached_outside = true;
-        }
-        if let Some(current) = get(x, y, m) {
-            if current == '.' {
-                ret.push((x, y));
-            }
-        }
-    }
-
-    (ret, reached_outside)
-}
-
+#[inline(always)]
 fn get_next(
     x: i16,
     y: i16,
@@ -56,35 +24,63 @@ fn get_next(
     seen: &[Vec<bool>],
     p_to_delta: &PosToAllowed,
 ) -> Option<(i16, i16)> {
-    for p in get_around(x, y, m, p_to_delta) {
-        if !seen[p.1 as usize][p.0 as usize] {
-            return Some(p);
+    let p = get(x, y, m).unwrap();
+    for ((dx, dy), allowed_chars) in &p_to_delta[p as usize] {
+        if let Some(current) = get(x + dx, y + dy, m) {
+            if allowed_chars.contains(&current) && !seen[(y + dy) as usize][(x + dx) as usize] {
+                return Some((x + dx, y + dy));
+            }
         }
     }
     None
 }
 
-fn flood_fill(start: Pos, m: &Map) -> (FxHashSet<Pos>, bool) {
-    let mut not_in_loop: FxHashSet<Pos> = Default::default();
-    let mut todo: FxHashSet<Pos> = Default::default();
-    todo.insert(start);
+fn flood_fill(
+    start: Pos,
+    m: &Map,
+    todo: &mut Vec<Pos>,
+    not_in_loop: &mut Vec<Pos>,
+    visited: &mut [bool],
+) -> (i64, bool) {
+    not_in_loop.clear();
+    todo.clear();
+    todo.push(start);
+    let w: usize = m[0].len();
     let mut reached_outside = false;
-    while !todo.is_empty() {
-        let next: Pos = *todo.iter().next().unwrap();
-        todo.remove(&next);
-        not_in_loop.insert(next);
-        let (cands, outside) = get_around_dot(next.0, next.1, &m);
-        if outside {
-            reached_outside = true;
+    let mut next_id = 0;
+    let mut size = 0;
+    let mut cands: SmallVec<[Pos; 4]> = Default::default();
+    while next_id < todo.len() {
+        let (x, y) = todo[next_id];
+        let idx = y as usize * w + x as usize;
+        if visited[idx] {
+            next_id += 1;
+            continue;
         }
+        not_in_loop.push((x, y));
+        size += 1;
+        visited[idx] = true;
+        cands.clear();
 
-        for cand in cands {
-            if !not_in_loop.contains(&cand) {
-                todo.insert(cand);
+        for (dx, dy) in [(-1, 0), (1, 0), (0, 1), (0, -1)] {
+            let x = x + dx;
+            let y = y + dy;
+
+            if x < 0 || y < 0 || x == w as i16 || y == m.len() as i16 {
+                reached_outside = true;
+            }
+            if let Some(current) = get(x, y, m) {
+                if current == '.' {
+                    if !visited[y as usize * w + x as usize] {
+                        todo.push((x, y));
+                    }
+                }
             }
         }
+
+        next_id += 1;
     }
-    (not_in_loop, reached_outside)
+    (size, reached_outside)
 }
 
 fn is_outside(start: Pos, m: &Map) -> bool {
@@ -205,10 +201,14 @@ pub fn solve(input: &str, verify_expected: bool, output: bool) -> Result<Duratio
 
     let mut part2 = 0;
 
+    let mut seen = vec![false; input.len() * input[0].len()];
+    let mut not_in_loop: Vec<Pos> = Vec::with_capacity(seen.len());
+    let mut buf = Vec::with_capacity(seen.len());
     while !dots.is_empty() {
         let start = *dots.iter().next().unwrap();
 
-        let (not_in_loop, reached_outside) = flood_fill(start, &input);
+        let (size, reached_outside) =
+            flood_fill(start, &input, &mut buf, &mut not_in_loop, &mut seen);
 
         for p in &not_in_loop {
             dots.remove(p);
@@ -218,7 +218,7 @@ pub fn solve(input: &str, verify_expected: bool, output: bool) -> Result<Duratio
             let start = *not_in_loop.iter().next().unwrap();
 
             if is_outside(start, &input) {
-                part2 += not_in_loop.len();
+                part2 += size;
             }
         }
     }
