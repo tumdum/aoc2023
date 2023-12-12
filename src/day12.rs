@@ -7,14 +7,14 @@ use std::time::{Duration, Instant};
 
 use crate::input::token_groups;
 
-type Target = SmallVec<[i8; 15]>;
+type Target = [i8];
 type Input = SmallVec<[u8; 36]>;
 
-fn solve_rec(
+fn solve_rec<'a>(
     i_r: (usize, usize),
-    cache: &mut FxHashMap<(Input, Target), i64>,
+    cache: &mut FxHashMap<(Input, &'a Target), i64>,
     input: &mut [u8],
-    target: &[i8],
+    target: &'a [i8],
     t_r: (usize, usize),
 ) -> i64 {
     if target[t_r.0..t_r.1].len() > input[i_r.0..i_r.1].len() {
@@ -32,10 +32,7 @@ fn solve_rec(
     {
         return 1;
     }
-    if let Some(ret) = cache.get(&(
-        input[i_r.0..i_r.1].to_smallvec(),
-        target[t_r.0..t_r.1].to_smallvec(),
-    )) {
+    if let Some(ret) = cache.get(&(input[i_r.0..i_r.1].to_smallvec(), &target[t_r.0..t_r.1])) {
         return *ret;
     }
 
@@ -57,7 +54,7 @@ fn solve_rec(
     };
     let point_orig = i_r.0 + point;
     let g = input[i_r.0..point_orig].iter().group_by(|c| **c);
-    let got_groups: Target = g
+    let got_groups: SmallVec<[i8; 20]> = g
         .into_iter()
         .filter(|(c, _)| *c == b'#')
         .map(|(_, g)| {
@@ -73,7 +70,7 @@ fn solve_rec(
 
         input[point_orig] = b'.';
 
-        let mut solutions_with_dot = vec![];
+        let mut solutions_with_dot: SmallVec<[i64; 20]> = Default::default();
         if target[t_r.0..t_r.1].starts_with(&got_groups) {
             for target_split in 0..=target[t_r.0..t_r.1].len() {
                 solutions_with_dot.push(
@@ -101,10 +98,7 @@ fn solve_rec(
 
     input[point_orig] = b'?';
     cache.insert(
-        (
-            input[i_r.0..i_r.1].to_smallvec(),
-            target[t_r.0..t_r.1].to_smallvec(),
-        ),
+        (input[i_r.0..i_r.1].to_smallvec(), &target[t_r.0..t_r.1]),
         ret,
     );
 
@@ -124,7 +118,7 @@ pub fn solve(input: &str, verify_expected: bool, output: bool) -> Result<Duratio
         })
         .collect();
 
-    let mut cache: FxHashMap<(Input, Target), i64> = Default::default();
+    let mut cache: FxHashMap<(Input, &Target), i64> = Default::default();
     let part1 = input
         .iter()
         .map(|(input, target, _)| {
@@ -143,7 +137,7 @@ pub fn solve(input: &str, verify_expected: bool, output: bool) -> Result<Duratio
     let part2 = input
         .par_iter()
         .map(|(input, target, _id)| {
-            let mut cache: FxHashMap<(Input, Target), i64> = Default::default();
+            let mut cache: FxHashMap<(Input, &Target), i64> = Default::default();
 
             let mut i = input.to_vec();
             i.push('?');
