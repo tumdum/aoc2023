@@ -53,7 +53,7 @@ fn main() {
         &aoc23::day09::solve,
         &aoc23::day10::solve,
         &aoc23::day11::solve,
-        // &aoc23::day12::solve,
+        &aoc23::day12::solve,
         // &aoc23::day13::solve,
         // &aoc23::day14::solve,
         // &aoc23::day15::solve,
@@ -85,7 +85,7 @@ fn main() {
             #[cfg(debug_assertions)]
             let loops = 1;
             #[cfg(not(debug_assertions))]
-            let loops = 10;
+            let loops = 1;
             for i in 0..loops {
                 let start = Instant::now();
                 let mapped_input = unsafe { MmapOptions::new().map(&input_file).unwrap() };
