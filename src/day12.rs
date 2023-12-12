@@ -4,8 +4,12 @@ use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 use smallvec::{SmallVec, ToSmallVec};
 use std::time::{Duration, Instant};
+use tikv_jemallocator::Jemalloc;
 
 use crate::input::token_groups;
+
+#[global_allocator]
+static GLOBAL: Jemalloc = Jemalloc;
 
 type Target = [i8];
 type Input = SmallVec<[u8; 36]>;
