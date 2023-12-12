@@ -38,30 +38,34 @@ fn solve_rec(
     )) {
         return *ret;
     }
-    let unknown: Vec<usize> = input[i_r.0..i_r.1]
-        .iter()
-        .enumerate()
-        .filter(|(_, c)| **c == b'?')
-        .map(|(i, _)| i)
-        .collect();
 
-    if unknown.is_empty() {
-        let got_groups: Vec<i8> = input[i_r.0..i_r.1]
-            .iter()
-            .group_by(|c| **c)
-            .into_iter()
-            .filter(|(c, _)| *c == b'#')
-            .map(|(_, g)| g.into_iter().count().try_into().unwrap())
-            .collect();
-        if got_groups == target[t_r.0..t_r.1] {
+    let first_unknown = input[i_r.0..i_r.1].iter().position(|c| *c == b'?');
+
+    let point = if let Some(p) = first_unknown {
+        p
+    } else {
+        let g = input[i_r.0..i_r.1].iter().group_by(|c| **c);
+        let got_groups = g.into_iter().filter(|(c, _)| *c == b'#').map(|(_, g)| {
+            let tmp: i8 = g.into_iter().count().try_into().unwrap();
+            tmp
+        });
+        if got_groups.eq(target[t_r.0..t_r.1].iter().copied()) {
             return 1;
         } else {
             return 0;
         }
-    }
-    let point = unknown[0];
-
+    };
     let point_orig = i_r.0 + point;
+    let g = input[i_r.0..point_orig].iter().group_by(|c| **c);
+    let got_groups: Target = g
+        .into_iter()
+        .filter(|(c, _)| *c == b'#')
+        .map(|(_, g)| {
+            let tmp: i8 = g.into_iter().count().try_into().unwrap();
+            tmp
+        })
+        .collect();
+
     let ret = {
         input[point_orig] = b'#';
 
@@ -70,22 +74,24 @@ fn solve_rec(
         input[point_orig] = b'.';
 
         let mut solutions_with_dot = vec![];
-        for target_split in 0..=target[t_r.0..t_r.1].len() {
-            solutions_with_dot.push(
-                solve_rec(
-                    (i_r.0, point_orig),
-                    cache,
-                    input,
-                    target,
-                    (t_r.0, t_r.0 + target_split),
-                ) * solve_rec(
-                    (point_orig, i_r.1),
-                    cache,
-                    input,
-                    target,
-                    (t_r.0 + target_split, t_r.1),
-                ),
-            )
+        if target[t_r.0..t_r.1].starts_with(&got_groups) {
+            for target_split in 0..=target[t_r.0..t_r.1].len() {
+                solutions_with_dot.push(
+                    solve_rec(
+                        (i_r.0, point_orig),
+                        cache,
+                        input,
+                        target,
+                        (t_r.0, t_r.0 + target_split),
+                    ) * solve_rec(
+                        (point_orig, i_r.1),
+                        cache,
+                        input,
+                        target,
+                        (t_r.0 + target_split, t_r.1),
+                    ),
+                )
+            }
         }
 
         let dot_solutions = solutions_with_dot.iter().copied().sum::<i64>();
