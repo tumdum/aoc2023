@@ -1,32 +1,39 @@
 use anyhow::Result;
 use itertools::iproduct;
 use rayon::prelude::*;
+use smallvec::{SmallVec, ToSmallVec};
 use std::time::{Duration, Instant};
 
 use crate::{input::token_groups, vec::transpose};
 
-fn find_mirror(m: &[Vec<char>], not_this: Option<usize>) -> Option<usize> {
+type Row = SmallVec<[u8; 20]>;
+
+fn find_mirror(m: &[Row], not_this: Option<usize>) -> Option<usize> {
     let mut longest = None;
-    for col in 0..m[0].len() {
+    for col in 1..m[0].len() {
         let mut mirrored_rows = 0;
         for row in 0..m.len() {
-            let mut left = m[row][..col].to_vec();
-            if left.is_empty() {
-                continue;
-            }
+            let mut left: Row = m[row][..col].to_smallvec();
             left.reverse();
+            assert!(!left.is_empty());
+
             let right = &m[row][col..];
-            if right.is_empty() {
-                continue;
-            }
+            assert!(!right.is_empty());
+
+            let mut any = false;
             if left.len() >= right.len() {
                 if left.starts_with(&right) {
                     mirrored_rows += 1;
+                    any = true;
                 }
             } else {
                 if right.starts_with(&left) {
                     mirrored_rows += 1;
+                    any = true;
                 }
+            }
+            if !any {
+                break;
             }
         }
         if mirrored_rows == m.len() {
@@ -39,49 +46,45 @@ fn find_mirror(m: &[Vec<char>], not_this: Option<usize>) -> Option<usize> {
     longest
 }
 
-fn flip(m: &mut [Vec<char>], row: usize, col: usize) {
+fn flip(m: &mut [Row], row: usize, col: usize) {
     let v = m[row][col];
-    let new = if v == '.' { '#' } else { '.' };
+    let new = if v == b'.' { b'#' } else { b'.' };
     m[row][col] = new;
 }
 
 fn find_smudge(
-    map: &[Vec<char>],
+    map: &[Row],
     old_by_col: Option<usize>,
     old_by_row: Option<usize>,
 ) -> (Option<usize>, Option<usize>) {
-    let mut new_by_col = None;
-    let mut new_by_row = None;
-
-    'outer: for (row, col) in iproduct!(0..map.len(), 0..map[0].len()) {
-        let mut copy = map.to_vec();
+    let mut copy = map.to_vec();
+    for (row, col) in iproduct!(0..map.len(), 0..map[0].len()) {
         flip(&mut copy, row, col);
 
         let by_col = find_mirror(&copy, old_by_col);
-        let by_row = find_mirror(&transpose(copy), old_by_row);
+        let by_row = find_mirror(&transpose(&copy), old_by_row);
 
         match (by_col, by_row) {
-            (None, Some(by_row)) => {
-                new_by_row = Some(by_row);
-                break 'outer;
-            }
-            (Some(by_col), None) => {
-                new_by_col = Some(by_col);
-                break 'outer;
-            }
+            (None, r @ Some(_)) => return (None, r),
+            (c @ Some(_), None) => return (c, None),
             _ => {}
         }
+        flip(&mut copy, row, col);
     }
-    (new_by_col, new_by_row)
+    unreachable!()
 }
 
 pub fn solve(input: &str, verify_expected: bool, output: bool) -> Result<Duration> {
-    let input: Vec<Vec<Vec<char>>> = token_groups(input, "\n\n", None)
+    let input: Vec<(usize, Vec<Row>)> = token_groups(input, "\n\n", None)
         .into_iter()
-        .map(|map| {
-            map.into_iter()
-                .map(|row: String| row.chars().collect())
-                .collect()
+        .enumerate()
+        .map(|(id, map)| {
+            (
+                id,
+                map.into_iter()
+                    .map(|row: String| row.bytes().collect())
+                    .collect(),
+            )
         })
         .collect();
 
@@ -89,19 +92,17 @@ pub fn solve(input: &str, verify_expected: bool, output: bool) -> Result<Duratio
 
     let mut cols_all = vec![];
     let mut rows_all = vec![];
-    for map in &input {
+    for (_, map) in &input {
         cols_all.push(find_mirror(&map, None));
-        rows_all.push(find_mirror(&transpose(map.to_vec()), None));
+        rows_all.push(find_mirror(&transpose(&map), None));
     }
 
     let part1 = rows_all.iter().copied().flatten().sum::<usize>() * 100
         + cols_all.iter().copied().flatten().sum::<usize>();
 
     let results: Vec<(Option<usize>, Option<usize>)> = input
-        .into_iter()
-        .enumerate()
-        .par_bridge()
-        .map(|(id, map)| find_smudge(&map, cols_all[id], rows_all[id]))
+        .par_iter()
+        .map(|(id, map)| find_smudge(&map, cols_all[*id], rows_all[*id]))
         .collect();
     let part2 = results
         .iter()
