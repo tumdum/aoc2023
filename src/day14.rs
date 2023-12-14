@@ -1,73 +1,64 @@
 use anyhow::Result;
+use itertools::iproduct;
 use rustc_hash::FxHashMap;
 use std::time::{Duration, Instant};
 
 use crate::input::tokens;
 
 type Pos = (i64, i64);
+type Map = Vec<Vec<u8>>;
 
-fn move_by(m: &mut [Vec<u8>], start: Pos, dir: Pos) {
+fn move_by(m: &mut Map, start: Pos, dir: Pos) {
     let mut curr = start;
-    assert!(m[curr.1 as usize][curr.0 as usize] == b'O');
+    debug_assert!(m[curr.1 as usize][curr.0 as usize] == b'O');
     loop {
         let next = (curr.0 + dir.0, curr.1 + dir.1);
 
         if next.0 < 0 || next.1 < 0 || next.0 >= m[0].len() as i64 || next.1 >= m.len() as i64 {
-            m[start.1 as usize][start.0 as usize] = b'.';
-            m[curr.1 as usize][curr.0 as usize] = b'O';
-            return;
+            break;
         }
         let at_next = m[next.1 as usize][next.0 as usize];
 
         if at_next == b'#' || at_next == b'O' {
-            m[start.1 as usize][start.0 as usize] = b'.';
-            m[curr.1 as usize][curr.0 as usize] = b'O';
-            return;
+            break;
         }
         curr = next;
     }
+    m[start.1 as usize][start.0 as usize] = b'.';
+    m[curr.1 as usize][curr.0 as usize] = b'O';
 }
 
-fn move_rocks(m: &mut [Vec<u8>], dir: Pos) {
-    for row in 0..m.len() {
-        for col in 0..m[row].len() {
-            if m[row][col] == b'O' {
-                move_by(m, (col as i64, row as i64), dir);
-            }
-        }
-    }
-}
-fn move_rocks2(m: &mut [Vec<u8>], dir: Pos) {
-    for row in (0..m.len()).rev() {
-        for col in (0..m[row].len()).rev() {
-            if m[row][col] == b'O' {
-                move_by(m, (col as i64, row as i64), dir);
-            }
+fn move_rocks(
+    m: &mut Map,
+    dir: Pos,
+    rows: impl Iterator<Item = usize>,
+    cols: impl Iterator<Item = usize> + Clone,
+) {
+    for (row, col) in iproduct!(rows, cols) {
+        if m[row][col] == b'O' {
+            move_by(m, (col as i64, row as i64), dir);
         }
     }
 }
 
-fn total_load(m: &[Vec<u8>]) -> i64 {
-    let mut ret = 0;
-    for row in 0..m.len() {
-        for col in 0..m[row].len() {
-            if m[row][col] == b'O' {
-                ret += m.len() - row;
-            }
-        }
-    }
-    ret as i64
+fn total_load(m: &Map) -> usize {
+    iproduct!(0..m.len(), 0..m[0].len())
+        .filter(|(row, col)| m[*row][*col] == b'O')
+        .map(|(row, _)| m.len() - row)
+        .sum()
 }
 
-fn cycle_map(map: &mut [Vec<u8>]) {
-    move_rocks(map, (0, -1));
-    move_rocks(map, (-1, 0));
-    move_rocks2(map, (0, 1));
-    move_rocks2(map, (1, 0));
+fn cycle_map(map: &mut Map) {
+    let l = map.len();
+    let ll = map[0].len();
+    move_rocks(map, (0, -1), 0..l, 0..ll);
+    move_rocks(map, (-1, 0), 0..l, 0..ll);
+    move_rocks(map, (0, 1), (0..l).rev(), (0..ll).rev());
+    move_rocks(map, (1, 0), (0..l).rev(), (0..ll).rev());
 }
 
 pub fn solve(input: &str, verify_expected: bool, output: bool) -> Result<Duration> {
-    let input: Vec<Vec<u8>> = tokens(input, None)
+    let input: Map = tokens(input, None)
         .into_iter()
         .map(|row: String| row.bytes().collect())
         .collect();
@@ -75,7 +66,9 @@ pub fn solve(input: &str, verify_expected: bool, output: bool) -> Result<Duratio
     let s = Instant::now();
 
     let mut map = input.clone();
-    move_rocks(&mut map, (0, -1));
+    let l = map.len();
+    let ll = map[0].len();
+    move_rocks(&mut map, (0, -1), 0..l, 0..ll);
     let part1 = total_load(&map);
 
     let mut seen: FxHashMap<Vec<Vec<u8>>, usize> = Default::default();
@@ -83,10 +76,11 @@ pub fn solve(input: &str, verify_expected: bool, output: bool) -> Result<Duratio
     let mut map = input.clone();
     let total = 1000000000;
     for cycle in 0..total {
-        if let Some(c) = seen.get(&map) {
+        if let Some(previous_cycle) = seen.get(&map) {
             let left = total - cycle;
-            let times = left / (cycle - c);
-            let todo = left - (times * (cycle - c));
+            let cycle_len = cycle - previous_cycle;
+            let times = left / cycle_len;
+            let todo = left - (times * cycle_len);
             for _ in 0..todo {
                 cycle_map(&mut map);
             }
