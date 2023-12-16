@@ -38,7 +38,7 @@ where
     }
 }
 
-impl<T> Add for Pos<T>
+impl<T, U> Add<Pos<U>> for Pos<T>
 where
     T: Debug
         + Clone
@@ -50,19 +50,10 @@ where
         + Hash
         + Sub
         + num::Signed
+        + From<U>
         + TryInto<usize>,
     <T as TryInto<usize>>::Error: Debug,
-{
-    type Output = Self;
-
-    #[inline(always)]
-    const fn add(self, rhs: Self) -> Self::Output {
-        Pos::new(self.x + rhs.x, self.y + rhs.y)
-    }
-}
-impl<T> Add<&Pos<T>> for Pos<T>
-where
-    T: Debug
+    U: Debug
         + Clone
         + Copy
         + PartialEq
@@ -73,12 +64,14 @@ where
         + Sub
         + num::Signed
         + TryInto<usize>,
-    <T as TryInto<usize>>::Error: Debug,
+    <U as TryInto<usize>>::Error: Debug,
 {
     type Output = Self;
 
     #[inline(always)]
-    fn add(self, rhs: &Pos<T>) -> Self::Output {
-        Pos::new(self.x + rhs.x, self.y + rhs.y)
+    fn add(self, rhs: Pos<U>) -> Self::Output {
+        let x: T = rhs.x.into();
+        let y: T = rhs.y.into();
+        Pos::new(self.x + x, self.y + y)
     }
 }
