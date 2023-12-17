@@ -1,4 +1,6 @@
 use anyhow::Result;
+use rayon::prelude::*;
+use smallvec::{smallvec, SmallVec};
 use std::{
     ops::Range,
     time::{Duration, Instant},
@@ -6,8 +8,15 @@ use std::{
 
 use crate::{dijkstra::dijkstra, input::tokens};
 
-type Pos = crate::pos::Pos<i64>;
+type Pos = crate::pos::Pos<i16>;
 type Dir = crate::pos::Pos<i8>;
+
+const ALL_DIRS: [Dir; 4] = [
+    Dir::new(0, 1),
+    Dir::new(0, -1),
+    Dir::new(1, 0),
+    Dir::new(-1, 0),
+];
 
 fn get(input: &[Vec<i64>], p: Pos) -> Option<i64> {
     input
@@ -17,27 +26,19 @@ fn get(input: &[Vec<i64>], p: Pos) -> Option<i64> {
 }
 
 fn find_best_path(input: &[Vec<i64>], move_range: Range<i8>) -> i64 {
-    let neighbours = |(curr_pos, curr_dir): &(Pos, Dir)| -> Vec<((Pos, Dir), i64)> {
-        let mut ret = vec![];
-        for next_dir in [
-            Dir::new(0, 1),
-            Dir::new(0, -1),
-            Dir::new(1, 0),
-            Dir::new(-1, 0),
-        ] {
+    let neighbours = |(curr_pos, curr_dir): &(Pos, Dir)| -> SmallVec<[((Pos, Dir), i64); 14]> {
+        let mut ret: SmallVec<[_; 14]> = smallvec![];
+        for next_dir in ALL_DIRS {
             if &next_dir == curr_dir || next_dir == (*curr_dir * -1) {
                 continue;
             }
             for dist in move_range.clone() {
                 let next_dist = next_dir * dist;
                 let next_pos = *curr_pos + next_dist;
-                if let Some(_) = get(input, next_pos) {
-                    let mut loss = 0;
-                    for i in 0..dist {
-                        let next_dist = next_dir * i;
-                        let next_pos = *curr_pos + next_dist;
-                        loss += get(&input, next_pos).unwrap();
-                    }
+                if get(input, next_pos).is_some() {
+                    let loss: i64 = (0..dist)
+                        .map(|d| get(&input, *curr_pos + (next_dir * d)).unwrap())
+                        .sum();
                     ret.push(((next_pos, next_dir), loss));
                 }
             }
@@ -45,16 +46,19 @@ fn find_best_path(input: &[Vec<i64>], move_range: Range<i8>) -> i64 {
         ret
     };
 
-    let start1: (Pos, Dir) = (Pos::new(0, 0), Dir::new(0, 1));
-    let start2: (Pos, Dir) = (Pos::new(0, 0), Dir::new(1, 0));
-    let paths1 = dijkstra(start1, neighbours);
-    let paths2 = dijkstra(start2, neighbours);
+    let paths: Vec<_> = [
+        (Pos::new(0, 0), Dir::new(0, 1)),
+        (Pos::new(0, 0), Dir::new(1, 0)),
+    ]
+    .par_iter()
+    .map(|start| (*start, dijkstra(*start, neighbours)))
+    .collect();
 
     let mut ret = vec![];
-    for (start, paths) in [(start1, paths1), (start2, paths2)] {
+    for (start, paths) in paths {
         for dir in [Dir::new(1, 0), Dir::new(0, 1)] {
             let end = (
-                Pos::new(input[0].len() as i64 - 1, input.len() as i64 - 1),
+                Pos::new(input[0].len() as i16 - 1, input.len() as i16 - 1),
                 dir,
             );
 
@@ -76,8 +80,12 @@ pub fn solve(input: &str, verify_expected: bool, output: bool) -> Result<Duratio
 
     let s = Instant::now();
 
-    let part1 = find_best_path(&input, 1i8..4);
-    let part2 = find_best_path(&input, 4i8..11);
+    let parts: Vec<_> = [(1i8..4), (4i8..11)]
+        .par_iter()
+        .map(|moves| find_best_path(&input, moves.clone()))
+        .collect();
+    let part1 = parts[0];
+    let part2 = parts[1];
 
     let e = s.elapsed();
 

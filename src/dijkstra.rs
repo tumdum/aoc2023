@@ -53,13 +53,14 @@ where
 }
 
 // Returns cost of path from start and previous nodes for path reconstruction.
-pub fn dijkstra<T, P>(
+pub fn dijkstra<T, P, V>(
     start: T,
-    neighbours_of: impl Fn(&T) -> Vec<(T, P)>,
+    neighbours_of: impl Fn(&T) -> V,
 ) -> (FxHashMap<T, P>, FxHashMap<T, T>)
 where
     T: Debug + PartialEq + Eq + PartialOrd + Ord + Hash + Clone,
     P: Debug + PartialEq + Eq + PartialOrd + Ord + Default + Clone + Add<Output = P>,
+    V: IntoIterator<Item = (T, P)>,
 {
     let mut dist: FxHashMap<T, P> = Default::default();
     dist.insert(start.clone(), P::default());
@@ -133,7 +134,7 @@ mod tests {
     #[test]
     fn full_graph() {
         let start = A;
-        let n_of = |_: &Node| ALL.into_iter().map(|n| (n, 1)).collect();
+        let n_of = |_: &Node| -> Vec<_> { ALL.into_iter().map(|n| (n, 1)).collect() };
         let (_, d_prev) = dijkstra(start, n_of);
         for target in ALL {
             let b_prev = bfs(start, |n| n == &target, |_| ALL.into_iter().collect());
