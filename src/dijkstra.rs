@@ -54,7 +54,7 @@ where
 
 // Returns cost of path from start and previous nodes for path reconstruction.
 pub fn dijkstra<T, P, V>(
-    start: T,
+    start: &[T],
     neighbours_of: impl Fn(&T) -> V,
 ) -> (FxHashMap<T, P>, FxHashMap<T, T>)
 where
@@ -63,7 +63,9 @@ where
     V: IntoIterator<Item = (T, P)>,
 {
     let mut dist: FxHashMap<T, P> = Default::default();
-    dist.insert(start.clone(), P::default());
+    for s in start {
+        dist.insert(s.clone(), P::default());
+    }
 
     let mut prev: FxHashMap<T, T> = Default::default();
 
@@ -84,10 +86,12 @@ where
         }
     }
     let mut todo: BinaryHeap<Reverse<State<T, P>>> = BinaryHeap::default();
-    todo.push(Reverse(State {
-        key: start.clone(),
-        prio: dist.get(&start).unwrap().clone(),
-    }));
+    for s in start {
+        todo.push(Reverse(State {
+            key: s.clone(),
+            prio: dist.get(s).unwrap().clone(),
+        }));
+    }
 
     while let Some(Reverse(State { key, prio })) = todo.pop() {
         for (neighbour, cost) in neighbours_of(&key) {
@@ -135,7 +139,7 @@ mod tests {
     fn full_graph() {
         let start = A;
         let n_of = |_: &Node| -> Vec<_> { ALL.into_iter().map(|n| (n, 1)).collect() };
-        let (_, d_prev) = dijkstra(start, n_of);
+        let (_, d_prev) = dijkstra(&[start], n_of);
         for target in ALL {
             let b_prev = bfs(start, |n| n == &target, |_| ALL.into_iter().collect());
             let d_path = path(&start, &target, &d_prev);
@@ -167,7 +171,7 @@ mod tests {
                 .map(|n| (n, 1))
                 .collect::<Vec<_>>()
         };
-        let (_, d_prev) = dijkstra(start, n_of);
+        let (_, d_prev) = dijkstra(&[start], n_of);
         let b_prev = bfs(
             start,
             |n| n == &target,
@@ -189,7 +193,7 @@ mod tests {
         #[test]
         fn bfs_and_dijkstra_equal(nodes: HashMap<Node, HashSet<Node>>, start: Node) {
             let n_of = |n: &Node| nodes.get(n).cloned().unwrap_or_default().into_iter().map(|n| (n, 1)).collect::<Vec<_>>();
-            let (_, d_prev) = dijkstra(start, n_of);
+            let (_, d_prev) = dijkstra(&[start], n_of);
             for target in ALL {
                 let b_prev = bfs(start, |n| n == &target, |n| nodes.get(n).cloned().unwrap_or_default().into_iter().collect::<Vec<_>>());
                 let d_path = path(&start, &target, &d_prev);

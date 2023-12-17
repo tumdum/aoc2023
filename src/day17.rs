@@ -36,7 +36,7 @@ fn find_best_path(input: &[Vec<i64>], move_range: Range<i8>) -> i64 {
                 let next_dist = next_dir * dist;
                 let next_pos = *curr_pos + next_dist;
                 if get(input, next_pos).is_some() {
-                    let loss: i64 = (0..dist)
+                    let loss: i64 = (1..=dist)
                         .map(|d| get(&input, *curr_pos + (next_dir * d)).unwrap())
                         .sum();
                     ret.push(((next_pos, next_dir), loss));
@@ -46,27 +46,23 @@ fn find_best_path(input: &[Vec<i64>], move_range: Range<i8>) -> i64 {
         ret
     };
 
-    let paths: Vec<_> = [
-        (Pos::new(0, 0), Dir::new(0, 1)),
-        (Pos::new(0, 0), Dir::new(1, 0)),
-    ]
-    .par_iter()
-    .map(|start| (*start, dijkstra(*start, neighbours)))
-    .collect();
+    let paths = dijkstra(
+        &[
+            (Pos::new(0, 0), Dir::new(0, 1)),
+            (Pos::new(0, 0), Dir::new(1, 0)),
+        ],
+        neighbours,
+    );
 
     let mut ret = vec![];
-    for (start, paths) in paths {
-        for dir in [Dir::new(1, 0), Dir::new(0, 1)] {
-            let end = (
-                Pos::new(input[0].len() as i16 - 1, input.len() as i16 - 1),
-                dir,
-            );
 
-            ret.push(
-                paths.0.get(&end).unwrap() + get(&input, end.0).unwrap()
-                    - get(&input, start.0).unwrap(),
-            );
-        }
+    for dir in [Dir::new(1, 0), Dir::new(0, 1)] {
+        let end = (
+            Pos::new(input[0].len() as i16 - 1, input.len() as i16 - 1),
+            dir,
+        );
+
+        ret.push(*paths.0.get(&end).unwrap());
     }
 
     ret.into_iter().min().unwrap()
