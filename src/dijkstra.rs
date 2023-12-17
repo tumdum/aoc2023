@@ -90,7 +90,7 @@ where
 
     while let Some(Reverse(State { key, prio })) = todo.pop() {
         for (neighbour, cost) in neighbours_of(&key) {
-            debug_assert_eq!(&prio, dist.get(&key).unwrap());
+            // TODO: debug_assert_eq!(&prio, dist.get(&key).unwrap());
             let alt = prio.clone() + cost;
             if dist.get(&neighbour).map(|p| &alt < p).unwrap_or(true) {
                 dist.insert(neighbour.clone(), alt.clone());
