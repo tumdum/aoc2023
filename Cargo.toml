@@ -29,3 +29,6 @@ proptest-derive = "0.4.0"
 name = "benchmarks"
 harness = false
 
+[profile.release]
+lto = "fat"
+
