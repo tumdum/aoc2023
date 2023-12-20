@@ -1,5 +1,6 @@
 use anyhow::Result;
 use rustc_hash::FxHashMap;
+use smol_str::SmolStr;
 use std::{
     collections::VecDeque,
     time::{Duration, Instant},
@@ -17,14 +18,14 @@ enum Pulse {
 enum Module {
     FlipFlop {
         on: bool,
-        outputs: Vec<String>,
+        outputs: Vec<SmolStr>,
     },
     Conjunction {
-        last_input_pulse: FxHashMap<String, Pulse>,
-        outputs: Vec<String>,
+        last_input_pulse: FxHashMap<SmolStr, Pulse>,
+        outputs: Vec<SmolStr>,
     },
     Broadcast {
-        outputs: Vec<String>,
+        outputs: Vec<SmolStr>,
     },
     Output {
         low_received: bool,
@@ -37,11 +38,11 @@ impl Module {
             last_input_pulse, ..
         } = self
         {
-            last_input_pulse.insert(name.to_owned(), Pulse::Low);
+            last_input_pulse.insert(name.into(), Pulse::Low);
         }
     }
 
-    fn outputs(&self) -> &[String] {
+    fn outputs(&self) -> &[SmolStr] {
         match self {
             Module::FlipFlop { outputs, .. } => &outputs,
             Module::Conjunction { outputs, .. } => &outputs,
@@ -50,7 +51,7 @@ impl Module {
         }
     }
 
-    fn process(&mut self, from: &str, pulse: Pulse) -> Vec<(String, Pulse)> {
+    fn process(&mut self, from: &str, pulse: Pulse) -> Vec<(SmolStr, Pulse)> {
         let mut ret = vec![];
         match self {
             Module::FlipFlop { on, outputs } => {
@@ -91,14 +92,14 @@ impl Module {
     }
 }
 
-type Topology = FxHashMap<String, Vec<String>>;
-type Kinds = FxHashMap<String, Module>;
+type Topology = FxHashMap<SmolStr, Vec<SmolStr>>;
+type Kinds = FxHashMap<SmolStr, Module>;
 
 fn send_pulse(kinds: &mut Kinds) -> (i64, i64) {
     let mut low = 0i64;
     let mut high = 0i64;
-    let mut todo: VecDeque<(String, Pulse, String)> = VecDeque::default();
-    todo.push_back(("broadcaster".to_owned(), Pulse::Low, "button".to_owned()));
+    let mut todo: VecDeque<(SmolStr, Pulse, SmolStr)> = VecDeque::default();
+    todo.push_back(("broadcaster".into(), Pulse::Low, "button".into()));
 
     while let Some((module_name, pulse, from)) = todo.pop_front() {
         match pulse {
@@ -130,7 +131,7 @@ fn turned_on(kinds: &Kinds, names: &[&str]) -> usize {
 
 pub fn solve(input: &str, verify_expected: bool, output: bool) -> Result<Duration> {
     let input = input.replace(",", " ");
-    let input: Vec<Vec<String>> = token_groups(&input, "\n", None);
+    let input: Vec<Vec<SmolStr>> = token_groups(&input, "\n", None);
 
     let mut topology = Topology::default();
     let mut kinds = Kinds::default();
@@ -139,7 +140,7 @@ pub fn solve(input: &str, verify_expected: bool, output: bool) -> Result<Duratio
     for line in input {
         let name = line[0].clone();
 
-        let outputs: Vec<String> = line
+        let outputs: Vec<SmolStr> = line
             .iter()
             .skip_while(|s| *s != "->")
             .skip(1)
@@ -149,12 +150,12 @@ pub fn solve(input: &str, verify_expected: bool, output: bool) -> Result<Duratio
             all.push(name.clone());
             kinds.insert(name.clone(), Module::Broadcast { outputs });
         } else if name.starts_with('%') {
-            let name: String = name.chars().skip(1).collect();
+            let name: SmolStr = name.chars().skip(1).collect();
             all.push(name.clone());
             kinds.insert(name, Module::FlipFlop { on: false, outputs });
         } else {
             assert!(name.starts_with('&'));
-            let name: String = name.chars().skip(1).collect();
+            let name: SmolStr = name.chars().skip(1).collect();
             all.push(name.clone());
             kinds.insert(
                 name,
@@ -175,9 +176,9 @@ pub fn solve(input: &str, verify_expected: bool, output: bool) -> Result<Duratio
         }
     }
 
-    let mut all2: Vec<String> = vec![];
-    let mut todo: VecDeque<String> = VecDeque::new();
-    todo.push_back("broadcaster".to_owned());
+    let mut all2: Vec<SmolStr> = vec![];
+    let mut todo: VecDeque<SmolStr> = VecDeque::new();
+    todo.push_back("broadcaster".into());
     while let Some(next) = todo.pop_front() {
         if all2.contains(&next) {
             continue;
