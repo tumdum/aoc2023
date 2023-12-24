@@ -20,6 +20,8 @@ proptest = "1.4.0"
 proptest-derive = "0.4.0"
 smol_str = "0.2.0"
 polyfit-rs = "0.2.1"
+reikna = "0.12.3"
+z3 = { version = "0.12.1", features = ["static-link-z3"] }
 
 [dev-dependencies]
 criterion = "0.3"

@@ -130,3 +130,25 @@ where
         Pos::new(self.x + x, self.y + y)
     }
 }
+
+impl<T> Sub for Pos<T>
+where
+    T: Debug
+        + Clone
+        + Copy
+        + PartialEq
+        + Eq
+        + PartialOrd
+        + Ord
+        + Hash
+        + Sub
+        + num::Signed
+        + TryInto<usize>,
+    <T as TryInto<usize>>::Error: Debug,
+{
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self::new(self.x - rhs.x, self.y - rhs.y)
+    }
+}
