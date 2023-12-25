@@ -66,7 +66,7 @@ fn main() {
         &aoc23::day22::solve,
         &aoc23::day23::solve,
         &aoc23::day24::solve,
-        // &aoc23::day25::solve,
+        &aoc23::day25::solve,
     ];
 
     let mut running_sum_compute = Duration::from_secs(0);
